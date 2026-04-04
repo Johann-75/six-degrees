@@ -3,67 +3,57 @@ import random
 import nltk
 from nltk.corpus import brown, wordnet as wn
 import google.generativeai as genai
+from dotenv import load_dotenv
 
-# --- 1. The Hardcoded Vault (Failsafe) ---
-# Add more here to reach your 1000-word goal! 
-FAILSAFE_WORDS = [
-    "Acoustics", "Alibi", "Anarchy", "Antenna", "Archive", "Artifact", "Astronaut", "Avalanche", 
-    "Bacteria", "Baggage", "Balloon", "Barometer", "Battery", "Beverage", "Blueprint", "Boundary", 
-    "Cabinet", "Capsule", "Caravan", "Catalog", "Cemetery", "Chandelier", "Checkpoint", "Cider", 
-    "Circuit", "Climate", "Colony", "Compass", "Conspiracy", "Cosmos", "Counterfeit", "Crystal", 
-    "Currency", "Cylinder", "Decade", "Default", "Delivery", "Density", "Departure", "Deposit", 
-    "Dialogue", "Dictator", "Dimension", "Diplomat", "Disaster", "Doctrine", "Dormitory", "Dynamics",
-    "Eclipse", "Economy", "Element", "Embassy", "Engine", "Enigma", "Entropy", "Equation", 
-    "Evidence", "Evolution", "Exhibition", "Exit", "Expansion", "Fabric", "Factory", "Faculty", 
-    "Famine", "Fantasy", "Feedback", "Fiction", "Filter", "Finance", "Fireworks", "Flavor", 
-    "Formula", "Fortune", "Fraction", "Fragment", "Friction", "Fuel", "Function", "Galaxy", 
-    "Gallery", "Garbage", "Gateway", "General", "Genetics", "Gesture", "Glacier", "Gossip", 
-    "Gravity", "Grenade", "Grid", "Guitar", "Habitat", "Harbor", "Harvest", "Hazard"
+# Load environment variables
+load_dotenv()
+GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
+if GOOGLE_API_KEY:
+    genai.configure(api_key=GOOGLE_API_KEY)
+
+FALLBACK_MODELS = [
+    'gemini-2.5-flash',                     # Primary (Smart but low limits)
+    'gemini-2.5-flash-lite',                # Backup 1
+    'gemini-3.1-flash-lite-preview',        # Backup 2 (The 500-limit beast you found!)
+    'gemini-2.0-flash-lite',                # Backup 3 (Legacy stable)
+    'gemini-flash-lite-latest'              # Backup 4 (Absolute last resort)
 ]
+
+ACTIVE_MODEL_INDEX = 0
 
 WORDS = []
 
 def setup_nltk():
     global WORDS
-    print("🚀 Initializing Semantic Engine...")
-    
-    # Essential small downloads (Low RAM)
+    print("Setting up NLTK data...")
+    nltk.download('brown', quiet=True)
     nltk.download('wordnet', quiet=True)
     nltk.download('omw-1.4', quiet=True)
-
-    try:
-        # Try the "High-RAM" Brown Corpus path
-        print("📊 Attempting Brown Corpus Noun Extraction...")
-        nltk.download('brown', quiet=True)
-        
-        # This is where the MemoryError usually happens
-        freq_dist = nltk.FreqDist(w.lower() for w in brown.words() if w.isalpha() and 3 <= len(w) <= 10)
-        most_common_words = [word for word, freq in freq_dist.most_common(5000)]
-        
-        # Filter for nouns
-        nouns = [word for word in most_common_words if len(wn.synsets(word, pos='n')) > 0][:500]
-        
-        if not nouns: raise ValueError("Empty noun list")
-        
-        WORDS = nouns
-        print("✅ SUCCESS: Engine running on dynamic Brown Corpus data.")
-
-    except Exception as e:
-        # THE FAILSAFE: If anything goes wrong (RAM spike, Timeout, etc.)
-        print(f"⚠️ FAILSAFE ACTIVATED: {e}")
-        print("💾 Switching to Hardcoded Noun Vault (Lite Mode)...")
-        WORDS = FAILSAFE_WORDS
-        print(f"✅ SUCCESS: Engine running on {len(WORDS)} hardcoded anchors.")
+    
+    print("Generating top nouns from Brown corpus...")
+    freq_dist = nltk.FreqDist(w.lower() for w in brown.words() if w.isalpha() and 3 <= len(w) <= 10)
+    most_common_words = [word for word, freq in freq_dist.most_common(5000)]
+    nouns = [word for word in most_common_words if len(wn.synsets(word, pos='n')) > 0][:500]
+    WORDS = nouns
+    print("NLTK setup complete.")
 
 def get_word_definition(word):
     word_lower = word.lower()
+
+    # --- STEP 1: Get ALL synsets for this word ---
     all_synsets = wn.synsets(word_lower)
     if not all_synsets:
         return "No definition found."
 
-    # Prevent "discuss" -> "discus" bug
-    exact_synsets = [s for s in all_synsets if word_lower in [l.name() for l in s.lemmas()]]
-    
+    # --- STEP 2: Filter to only synsets where the EXACT word is a lemma ---
+    # This prevents "discuss" from resolving to the "discus" (noun) synset.
+    exact_synsets = [
+        s for s in all_synsets
+        if word_lower in [l.name() for l in s.lemmas()]
+    ]
+
+    # --- STEP 3: Within exact matches, prefer by Part of Speech ---
+    # Priority: Verb (v) > Noun (n) > Adjective (a/s) > Adverb (r)
     pos_priority = ['v', 'n', 'a', 's', 'r']
     candidate_pool = exact_synsets if exact_synsets else all_synsets
 
@@ -72,13 +62,14 @@ def get_word_definition(word):
         if pos_synsets:
             return pos_synsets[0].definition()
 
+    # --- STEP 4: Absolute fallback ---
     return candidate_pool[0].definition()
 
 def get_random_noun_pair():
-    global WORDS
     if not WORDS:
         setup_nltk()
-    return random.sample(WORDS, 2)
+    pair = random.sample(WORDS, 2)
+    return pair[0], pair[1]
 
 def generate_with_fallback(prompt, max_retries=3, verbose=True):
     global ACTIVE_MODEL_INDEX
