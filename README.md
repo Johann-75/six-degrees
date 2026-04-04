@@ -1,3 +1,12 @@
+---
+title: Six Degrees
+emoji: 🕸️
+colorFrom: indigo
+colorTo: slate
+sdk: docker
+app_port: 7860
+---
+
 # Six Degrees: AI-Powered Semantic Navigation Engine
 
 **Six Degrees** is a research-oriented word association engine that explores the boundaries of semantic reasoning and grounding in Large Language Models (LLMs). This project uses classical NLP (NLTK/WordNet) to anchor modern Generative AI into a strict, definition-first evaluation framework.
