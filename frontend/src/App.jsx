@@ -3,11 +3,10 @@ import TopBar from './components/TopBar';
 import Feed from './components/Feed';
 import GuessInput from './components/GuessInput';
 import WinScreen from './components/WinScreen';
-// eslint-disable-next-line no-unused-vars
-import { motion } from 'framer-motion';
 import { RefreshCcw } from 'lucide-react';
 
-// This ensures we always have the /api suffix even if we forget it in the Vercel settings
+// Dynamic API detection: Ensures we always have the /api suffix 
+// and falls back to localhost:8000 if no VITE_API_URL is provided.
 const rawUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 const API_BASE = rawUrl.endsWith('/api') ? rawUrl : `${rawUrl}/api`;
 
@@ -31,12 +30,16 @@ function App() {
   const [backendError, setBackendError] = useState('');
   const [hasError, setHasError] = useState(false);
 
+  /**
+   * Initializes a new game session. 
+   * Fetches the start word, target word, and their definitions.
+   */
   const startGame = async () => {
     setIsAppLoading(true);
     setBackendError('');
     try {
       const res = await fetch(`${API_BASE}/start`);
-      if (!res.ok) throw new Error('Failed to fetch words from backend');
+      if (!res.ok) throw new Error('Failed to connect to semantic engine');
       const data = await res.json();
       
       setGameState({
@@ -53,7 +56,7 @@ function App() {
       setShowWinModal(false);
       setHistory([]);
     } catch (err) {
-      setBackendError(err.message + ". Make sure the backend is running on port 8000.");
+      setBackendError(`${err.message}. Ensure backend is active at ${API_BASE}`);
     } finally {
       setIsAppLoading(false);
     }
@@ -63,6 +66,10 @@ function App() {
     startGame();
   }, []);
 
+  /**
+   * Handles user guesses, sends them to the backend for semantic evaluation,
+   * and updates game state based on the result.
+   */
   const handleGuess = async (guess) => {
     if (!guess || isLoading) return;
     setIsLoading(true);
@@ -88,6 +95,7 @@ function App() {
 
       const data = await res.json();
 
+      // Record guess into game log
       setHistory((prev) => [
         ...prev,
         {
@@ -108,7 +116,8 @@ function App() {
             winExplanation: data.message
           }));
           setShowWinModal(true);
-        } else if (data.status === 'continue') {
+        } else {
+          // data.status === 'continue'
           setGameState(prev => ({
             ...prev,
             currentWord: data.new_anchor,
@@ -117,22 +126,23 @@ function App() {
         }
       }
     } catch (err) {
-      console.error(err);
+      setHasError(true);
       setHistory((prev) => [
         ...prev,
         { guess: guess, valid: false, explanation: `System Error: ${err.message}` }
       ]);
-      setHasError(true);
     } finally {
       setIsLoading(false);
     }
   };
 
+  // --- RENDERING HANDLERS ---
+
   if (isAppLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen gap-4 bg-[#0D0D0D] text-slate-400">
         <RefreshCcw className="animate-spin w-8 h-8" />
-        <p className="font-mono">Loading Data Corpus...</p>
+        <p className="font-mono">Loading Semantic Corpus...</p>
       </div>
     );
   }
@@ -141,15 +151,17 @@ function App() {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen gap-4 max-w-md mx-auto text-center bg-[#0D0D0D]">
         <div className="bg-rose-900/20 text-rose-400 p-4 rounded-xl border border-rose-900/50">
-          <p className="font-bold mb-2">Connection Error</p>
+          <p className="font-bold mb-2">Engine Offline</p>
           <p className="text-sm">{backendError}</p>
         </div>
-        <button onClick={startGame} className="bg-slate-800 text-white px-4 py-2 rounded flex items-center gap-2 hover:bg-slate-700">
+        <button onClick={startGame} className="bg-slate-800 text-white px-4 py-2 rounded flex items-center gap-2 hover:bg-slate-700 transition-colors">
           <RefreshCcw size={16} /> Retry
         </button>
       </div>
     );
   }
+
+  // --- UI DYNAMIC THEMING ---
 
   const validJumps = history.filter(h => h.valid).length;
   const colorCycleLeft = ['bg-indigo-600', 'bg-purple-600', 'bg-blue-600', 'bg-fuchsia-600', 'bg-violet-600'];
@@ -158,18 +170,17 @@ function App() {
   const currentRightColor = gameState.gameWon ? 'bg-cyan-500' : colorCycleRight[validJumps % colorCycleRight.length];
 
   return (
-    <div className="flex flex-col h-screen w-full relative overflow-hidden bg-[#0D0D0D] text-[#f1f5f9]">
-      {/* Background Noise Texture */}
+    <div className="flex flex-col h-screen w-full relative overflow-hidden bg-[#0D0D0D] text-slate-100 selection:bg-indigo-500/30">
+      
+      {/* Immersive Layers: Noise and Ambient Gradients */}
       <div 
         className="pointer-events-none fixed inset-0 z-0 opacity-5 mix-blend-overlay"
         style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}
       ></div>
+      <div className={`pointer-events-none fixed -top-[20%] -left-[10%] w-[60%] h-[60%] rounded-full blur-[140px] opacity-20 transition-colors duration-1000 ${currentLeftColor}`}></div>
+      <div className={`pointer-events-none fixed -bottom-[20%] -right-[10%] w-[60%] h-[60%] rounded-full blur-[140px] opacity-15 transition-colors duration-1000 ${currentRightColor}`}></div>
 
-      {/* Ambient Mesh Gradients */}
-      <div className={`pointer-events-none fixed -top-[20%] -left-[10%] w-[60%] h-[60%] rounded-full blur-[140px] opacity-20 ${currentLeftColor}`}></div>
-      <div className={`pointer-events-none fixed -bottom-[20%] -right-[10%] w-[60%] h-[60%] rounded-full blur-[140px] opacity-15 ${currentRightColor}`}></div>
-
-      {/* Main Content Layer */}
+      {/* Main HUD Layer */}
       <div className="relative z-10 flex flex-col h-full w-full">
         <TopBar 
           wordA={gameState.currentWord} 

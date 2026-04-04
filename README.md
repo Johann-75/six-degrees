@@ -50,7 +50,7 @@ The client is a high-end "Minimalist Studio" frontend designed for zero latency 
    ```bash
    cp .env.example .env
    ```
-3. Add your `GOOGLE_API_KEY` to the `.env` file.
+3. Add your `GOOGLE_API_KEY` to the `.env` file. (Optional: Set `FRONTEND_URL` for CORS).
 4. Install dependencies:
    ```bash
    pip install -r requirements.txt
