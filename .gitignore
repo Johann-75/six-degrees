@@ -1,0 +1,35 @@
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv
+venv/
+ENV/
+env/
+.env
+.pytest_cache/
+
+# Node.js
+node_modules/
+dist/
+build/
+.eslintcache
+*.log
+
+# Project Specific
+backend/.env
+backend/__pycache__/
+frontend/.env
+frontend/node_modules/
+frontend/dist/
+*.pyc
+__pycache__/
+.venv/
+venv/
+node_modules/

@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Outfit", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  place-items: center;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: #0D0D0D;
+  color: #f1f5f9;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  margin: 0 auto;
+  width: 100%;
+}
+
+@keyframes dash-flowing {
+  0% { stroke-dashoffset: 1000; }
+  100% { stroke-dashoffset: 0; }
+}
+
+.animate-flowing {
+  animation: dash-flowing 20s linear infinite;
+}
+
+.glitch-text {
+  text-shadow: 2px 0 #00ffff, -2px 0 #ff00ff;
+}
+
+.word-card, .word-card * {
+  -ms-overflow-style: none !important;  /* IE and Edge */
+  scrollbar-width: none !important;     /* Firefox */
+}
+.word-card::-webkit-scrollbar, .word-card *::-webkit-scrollbar {
+  display: none !important;             /* Chrome, Safari and Opera */
+}
