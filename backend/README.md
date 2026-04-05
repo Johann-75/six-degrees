@@ -1,49 +1,42 @@
-# Six Degrees: Backend Engine & Semantic Judging
+# Six Degrees: Semantic Engine & The "Librarian" Judge 🧠
 
-This backend provides the core "brain" for the **Six Degrees** word association game. It is a **FastAPI** application designed to perform real-time semantic evaluation of word pairs using a combination of traditional NLP corpora and modern LLMs.
+This backend is the neural center of the **Six Degrees** word association game. It uses a hybrid architecture that combines **WordNet's** structured linguistic database with **Google Gemini's** reasoning to evaluate semantic jumps in real-time.
 
-## 🧠 The Field: Semantic Word Association (NLP)
+## 🚀 Key Features
 
-This project operates in the space of **Lexical Semantics** and **Computational Linguistics**. It specifically explores:
-- **Semantic Relatedness**: Determining if two words (A and B) belong to the same conceptual network.
-- **Linguistic Grounding**: Forcing an LLM to evaluate connections based on literal dictionary definitions rather than vague vector-space proximity alone.
+### 1. The "Librarian" Logic (Contextual Disambiguation)
+Unlike standard dictionary apps, this engine doesn't just grab the first definition. 
+- **Context Awareness**: When a user makes a guess, the engine analyzes the "Current Word" and the "Guess" together. 
+- **Disambiguation**: If a word has multiple meanings (e.g., "Cardinal" as a Bishop vs. a Direction), the AI "Librarian" selects the definition that best fits the player's path.
 
-## 🛠️ Tech Stack & Internal Logic
-
-### 1. Noun Corpus Discovery (NLTK & Brown)
-The backend uses the **Brown Corpus** via the **NLTK** library to identify common English nouns.
-- **Filtering**: We extract the top 5,000 most common words, filtering for those that have at least one **Noun Synset** in WordNet.
-- **Random Sampling**: Upon game start, the engine selects two distinct nouns from this pool to serve as the "Start" and "Target" words.
-
-### 2. Grounding via WordNet
-To ensure logical consistency, we fetch the first **WordNet Synset** definition for every word in the session.
-- **The Definition Constraint**: When a user submits a guess, that guess's definition is retrieved. The AI Judge is then provided with the literal definitions of both the anchor and the guess.
-- **Why?**: This prevents "semantic drift." For example, if the definition of "Fair" is "a traveling show," the Judge will reject the connection to "Justice" because the definitions do not intersect in that specific context.
+### 2. Noun Corpus Discovery (NLTK & Brown)
+The game pool is generated from the **Brown Corpus**, ensuring start and target words are common enough to be playable but diverse enough to be challenging.
+- **Filtering**: We extract the top 5,000 words, filtering for those with valid **Noun Synsets**.
+- **Priority**: The engine uses a strict **Noun-First** Part-of-Speech priority to ensure gameplay remains intuitive.
 
 ### 3. The Gemini Judging Engine
-The semantic "Judge" is a multi-turn logical validator powered by **Google Gemini**.
-
-**The Prompt Strategy**:
-The Judge is provided with the following instructions:
-- Use *only* the provided definitions.
-- Reject metaphorical, symbolic, or purely etymological links.
-- Only accept direct "category" links, synonyms, or strong factual/cultural associations.
+Powered by the **Gemini 1.5/2.0** family, the Judge acts as a high-IQ linguistic arbiter.
+- **Grounding**: The Judge is forbidden from using "vibe-based" reasoning. It must justify every `𝕐𝔼𝕊` or `ℕ𝕆` based solely on the provided dictionary definitions.
+- **Explainability**: Every rejection or acceptance comes with a factual, one-sentence explanation of the conceptual intersection.
 
 ### 4. Resilient Fallback: "The Circuit Breaker"
-To manage API rate limits and quotas, we've implemented an automated model fallback chain in `game_logic.py`:
-- **Model List**: `gemini-2.5-flash`, `gemini-1.5-flash`, `gemini-3.1-flash-lite-preview`.
-- **Tripping the Breaker**: If any model returns a `429 (Rate Limit)` or `Quota Exhausted` error, the system stores that model's failure state and "trips the breaker," automatically upgrading or switching to the next model in the chain for the rest of the game session.
+To survive high traffic or API rate limits, the engine uses an automated fallback chain:
+- **Primary**: `gemini-1.5-flash` (Fast & reliable)
+- **Secondary**: `gemini-1.5-flash-8b` (High throughput)
+- **Advanced**: `gemini-2.0-flash-lite-preview` (Next-gen reasoning)
 
-## 🔌 API Documentation
+## 🛠️ Architecture: Dockerized All-in-One
+The backend is designed for high-RAM environments (like Hugging Face Spaces). 
+- **FastAPI**: Handles the high-performance asynchronous API routes.
+- **Static Mounting**: The backend is configured to serve the **React (Vite)** frontend directly, eliminating CORS issues and simplifying deployment.
 
-- `GET /api/start`: Returns two random nouns and their WordNet definitions.
-- `POST /api/judge`: Accepts a `{guess, current_word, target_word, current_def, target_def}` payload and returns a JSON response with status ("win", "continue", "fail") and a detailed AI explanation string.
+## 🔌 API Endpoints
 
-## 🚀 Installation & Running
+- `GET /api/start`: Generates the game session nouns and definitions.
+- `POST /api/judge`: Evaluates a `{guess, current_word, target_word, current_def, target_def}` payload.
 
-```bash
-pip install -r requirements.txt
-python main.py
-```
-> [!IMPORTANT]
-> Ensure `GOOGLE_API_KEY` is set in your `.env`. The server will download NLTK's `brown`, `wordnet`, and `omw-1.4` packages on the first startup.
+## 🚀 Local Setup
+
+1. **Install Dependencies**:
+   ```bash
+   pip install -r requirements.txt

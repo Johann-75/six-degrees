@@ -5,10 +5,12 @@ import GuessInput from './components/GuessInput';
 import WinScreen from './components/WinScreen';
 import { RefreshCcw } from 'lucide-react';
 
-// Dynamic API detection: Ensures we always have the /api suffix 
-// and falls back to localhost:8000 if no VITE_API_URL is provided.
-const rawUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-const API_BASE = rawUrl.endsWith('/api') ? rawUrl : `${rawUrl}/api`;
+/**
+ * RELATIVE API PATH
+ * Since we're deploying a unified Docker container, the frontend
+ * and backend share the same origin. No more localhost/Railway URLs needed!
+ */
+const API_BASE = '/api';
 
 function App() {
   const [gameState, setGameState] = useState({
@@ -30,10 +32,6 @@ function App() {
   const [backendError, setBackendError] = useState('');
   const [hasError, setHasError] = useState(false);
 
-  /**
-   * Initializes a new game session. 
-   * Fetches the start word, target word, and their definitions.
-   */
   const startGame = async () => {
     setIsAppLoading(true);
     setBackendError('');
@@ -56,7 +54,7 @@ function App() {
       setShowWinModal(false);
       setHistory([]);
     } catch (err) {
-      setBackendError(`${err.message}. Ensure backend is active at ${API_BASE}`);
+      setBackendError(`${err.message}. The engine might be waking up.`);
     } finally {
       setIsAppLoading(false);
     }
@@ -66,10 +64,6 @@ function App() {
     startGame();
   }, []);
 
-  /**
-   * Handles user guesses, sends them to the backend for semantic evaluation,
-   * and updates game state based on the result.
-   */
   const handleGuess = async (guess) => {
     if (!guess || isLoading) return;
     setIsLoading(true);
@@ -95,7 +89,6 @@ function App() {
 
       const data = await res.json();
 
-      // Record guess into game log
       setHistory((prev) => [
         ...prev,
         {
@@ -117,7 +110,6 @@ function App() {
           }));
           setShowWinModal(true);
         } else {
-          // data.status === 'continue'
           setGameState(prev => ({
             ...prev,
             currentWord: data.new_anchor,
@@ -136,32 +128,28 @@ function App() {
     }
   };
 
-  // --- RENDERING HANDLERS ---
-
   if (isAppLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen gap-4 bg-[#0D0D0D] text-slate-400">
         <RefreshCcw className="animate-spin w-8 h-8" />
-        <p className="font-mono">Loading Semantic Corpus...</p>
+        <p className="font-mono text-sm tracking-widest">LOADING SEMANTIC CORPUS...</p>
       </div>
     );
   }
 
   if (backendError && !gameState.isInitialized) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen gap-4 max-w-md mx-auto text-center bg-[#0D0D0D]">
-        <div className="bg-rose-900/20 text-rose-400 p-4 rounded-xl border border-rose-900/50">
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4 max-w-md mx-auto px-6 text-center bg-[#0D0D0D]">
+        <div className="bg-rose-900/20 text-rose-400 p-6 rounded-2xl border border-rose-900/30">
           <p className="font-bold mb-2">Engine Offline</p>
-          <p className="text-sm">{backendError}</p>
+          <p className="text-xs opacity-80">{backendError}</p>
         </div>
-        <button onClick={startGame} className="bg-slate-800 text-white px-4 py-2 rounded flex items-center gap-2 hover:bg-slate-700 transition-colors">
-          <RefreshCcw size={16} /> Retry
+        <button onClick={startGame} className="bg-white/5 text-white px-6 py-2 rounded-full flex items-center gap-2 hover:bg-white/10 transition-all border border-white/10">
+          <RefreshCcw size={16} /> REBOOT ENGINE
         </button>
       </div>
     );
   }
-
-  // --- UI DYNAMIC THEMING ---
 
   const validJumps = history.filter(h => h.valid).length;
   const colorCycleLeft = ['bg-indigo-600', 'bg-purple-600', 'bg-blue-600', 'bg-fuchsia-600', 'bg-violet-600'];
@@ -172,16 +160,16 @@ function App() {
   return (
     <div className="flex flex-col h-screen w-full relative overflow-hidden bg-[#0D0D0D] text-slate-100 selection:bg-indigo-500/30">
       
-      {/* Immersive Layers: Noise and Ambient Gradients */}
+      {/* Background FX */}
       <div 
-        className="pointer-events-none fixed inset-0 z-0 opacity-5 mix-blend-overlay"
+        className="pointer-events-none fixed inset-0 z-0 opacity-[0.03] mix-blend-overlay"
         style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}
       ></div>
-      <div className={`pointer-events-none fixed -top-[20%] -left-[10%] w-[60%] h-[60%] rounded-full blur-[140px] opacity-20 transition-colors duration-1000 ${currentLeftColor}`}></div>
-      <div className={`pointer-events-none fixed -bottom-[20%] -right-[10%] w-[60%] h-[60%] rounded-full blur-[140px] opacity-15 transition-colors duration-1000 ${currentRightColor}`}></div>
+      <div className={`pointer-events-none fixed -top-[10%] -left-[10%] w-[50%] h-[50%] rounded-full blur-[120px] opacity-20 transition-colors duration-1000 ${currentLeftColor}`}></div>
+      <div className={`pointer-events-none fixed -bottom-[10%] -right-[10%] w-[50%] h-[50%] rounded-full blur-[120px] opacity-15 transition-colors duration-1000 ${currentRightColor}`}></div>
 
-      {/* Main HUD Layer */}
-      <div className="relative z-10 flex flex-col h-full w-full">
+      {/* Main UI Container */}
+      <div className="relative z-10 flex flex-col h-full w-full max-w-6xl mx-auto">
         <TopBar 
           wordA={gameState.currentWord} 
           wordADef={gameState.currentDef} 
@@ -195,15 +183,19 @@ function App() {
           hasError={hasError}
         />
         
-        <Feed history={history} isWaiting={isLoading} />
+        <div className="flex-1 overflow-hidden px-4">
+           <Feed history={history} isWaiting={isLoading} />
+        </div>
         
-        {!gameState.gameWon && (
-          <GuessInput 
-            onSubmit={handleGuess} 
-            isLoading={isLoading} 
-            hasError={hasError} 
-          />
-        )}
+        <div className="p-4 md:p-8">
+          {!gameState.gameWon && (
+            <GuessInput 
+              onSubmit={handleGuess} 
+              isLoading={isLoading} 
+              hasError={hasError} 
+            />
+          )}
+        </div>
 
         {gameState.gameWon && showWinModal && (
           <WinScreen 
