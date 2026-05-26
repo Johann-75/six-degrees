@@ -9,10 +9,7 @@ import WinScreen from './components/WinScreen';
 import GameOverScreen from './components/GameOverScreen';
 
 const hostname = window.location.hostname;
-const API_BASE =
-  hostname === 'localhost' || hostname === '127.0.0.1'
-    ? 'http://localhost:8000/api'
-    : '/api';
+const API_BASE = 'https://johann75-six-degrees.hf.space/api';
 
 function App() {
   const [gameState, setGameState] = useState({
