@@ -11,11 +11,7 @@
   color-scheme: dark;
 }
 
-/* FIXING THE "CRAMPED" VIBE:
-   1. Removed display: flex and place-items: center. 
-   2. Set height to 100dvh (dynamic viewport) so it stays full-screen in iframes.
-   3. Added overflow: hidden so the body doesn't double-scroll.
-*/
+/* NO FLEX, NO CENTERING. LET IT BREATHE. */
 html, body {
   margin: 0;
   padding: 0;
@@ -48,9 +44,7 @@ html, body {
   text-shadow: 2px 0 #00ffff, -2px 0 #ff00ff;
 }
 
-/* GLOBAL SCROLLBAR HIDER
-   This gives it that "Native App" feel.
-*/
+/* GLOBAL SCROLLBAR HIDER */
 * {
   scrollbar-width: none !important; /* Firefox */
   -ms-overflow-style: none !important; /* IE/Edge */
@@ -58,4 +52,13 @@ html, body {
 
 *::-webkit-scrollbar {
   display: none !important; /* Chrome/Safari */
+}
+
+/* Explicit scrollbar hider utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

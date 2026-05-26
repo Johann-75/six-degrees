@@ -1,42 +1,87 @@
-# Six Degrees: Semantic Engine & The "Librarian" Judge 🧠
+# Six Degrees: Semantic Engine & The Groq "Librarian" Judge 🧠
 
-This backend is the neural center of the **Six Degrees** word association game. It uses a hybrid architecture that combines **WordNet's** structured linguistic database with **Google Gemini's** reasoning to evaluate semantic jumps in real-time.
+This backend is the high-performance linguistic core of the **Six Degrees** word association engine. It utilizes a hybrid architecture that pairs **WordNet's** structural lexical database with **Groq's** lightning-fast LPU inference utilizing the advanced **Llama-3.3-70B** model to evaluate semantic jumps in real-time.
+
+---
 
 ## 🚀 Key Features
 
-### 1. The "Librarian" Logic (Contextual Disambiguation)
-Unlike standard dictionary apps, this engine doesn't just grab the first definition. 
-- **Context Awareness**: When a user makes a guess, the engine analyzes the "Current Word" and the "Guess" together. 
-- **Disambiguation**: If a word has multiple meanings (e.g., "Cardinal" as a Bishop vs. a Direction), the AI "Librarian" selects the definition that best fits the player's path.
+### 1. The Groq Semantic Arena Judge
+Powered by `llama-3.3-70b-versatile` running on Groq, the Judge acts as a high-IQ linguistic arbiter.
+- **Strict JSON Enforcement**: The engine calls Groq with strict JSON output parameters (`response_format={"type": "json_object"}`), ensuring reliable data flow and high-speed processing under zero latency.
+- **Grounding**: The Judge evaluates relationships based on provided dictionary definitions, rejecting loose metaphorical or slang-based links unless there is a physical, logical, or category intersection in their core definitions.
+- **Explainability**: Every acceptance or rejection comes with a context-backed explanation and a creativity score (1 to 10).
 
-### 2. Noun Corpus Discovery (NLTK & Brown)
-The game pool is generated from the **Brown Corpus**, ensuring start and target words are common enough to be playable but diverse enough to be challenging.
-- **Filtering**: We extract the top 5,000 words, filtering for those with valid **Noun Synsets**.
-- **Priority**: The engine uses a strict **Noun-First** Part-of-Speech priority to ensure gameplay remains intuitive.
+### 2. Context-Aware Definition Updates
+Unlike standard dictionary lookups, this engine updates anchor definitions contextually.
+- When a guess is accepted, the prompt instructs the Groq contextual dictionary to define the new word *based strictly on the semantic link used to connect them* (e.g. defining "vault" specifically as a safe storage room rather than an architectural archway when linked from "safe").
 
-### 3. The Gemini Judging Engine
-Powered by the **Gemini 1.5/2.0** family, the Judge acts as a high-IQ linguistic arbiter.
-- **Grounding**: The Judge is forbidden from using "vibe-based" reasoning. It must justify every `𝕐𝔼𝕊` or `ℕ𝕆` based solely on the provided dictionary definitions.
-- **Explainability**: Every rejection or acceptance comes with a factual, one-sentence explanation of the conceptual intersection.
+### 3. Infinite Loop Prevention
+- The backend evaluates guesses against the active word `chain` history passed down in the request body. If a player attempts to repeat a previously played word to cycle paths, the engine instantly flags a circular gameplay failure.
 
-### 4. Resilient Fallback: "The Circuit Breaker"
-To survive high traffic or API rate limits, the engine uses an automated fallback chain:
-- **Primary**: `gemini-1.5-flash` (Fast & reliable)
-- **Secondary**: `gemini-1.5-flash-8b` (High throughput)
-- **Advanced**: `gemini-2.0-flash-lite-preview` (Next-gen reasoning)
+### 4. Direct UI-to-Backend Definition Alignment
+- To prevent polysemy mismatches (where the user sees one word meaning but the judge evaluates against another), the API accepts `current_def` and `target_def` directly in the payload, forcing the judge to use the exact same definition visible on the client screen.
 
-## 🛠️ Architecture: Dockerized All-in-One
-The backend is designed for high-RAM environments (like Hugging Face Spaces). 
-- **FastAPI**: Handles the high-performance asynchronous API routes.
-- **Static Mounting**: The backend is configured to serve the **React (Vite)** frontend directly, eliminating CORS issues and simplifying deployment.
+### 5. Nouns Corpus Discovery (NLTK & Brown)
+The game nouns pool is generated from a high-quality slice of the **NLTK Brown Corpus**.
+- **Goldilocks Zone**: The engine extracts words from the mid-tier frequency range `[800:3500]`, filtering for those with valid **Noun Synsets**. This ensures start and target words are standard and high-frequency, keeping gameplay challenging but intuitive.
+- **Hyponym Category Non-Intersection**: Startup word pairs are filtered to ensure they share zero immediate hypernym categories, making sure they are not trivial synonyms.
+
+---
 
 ## 🔌 API Endpoints
 
-- `GET /api/start`: Generates the game session nouns and definitions.
-- `POST /api/judge`: Evaluates a `{guess, current_word, target_word, current_def, target_def}` payload.
+### `GET /api/start`
+- **Output**: Generates game session nouns and context-grounded definitions via Groq (with local WordNet fallbacks).
+  ```json
+  {
+    "word_a": "workers",
+    "word_a_def": "Workers are individuals who perform tasks or labor in exchange for payment...",
+    "word_b": "corporation",
+    "word_b_def": "A corporation is a large business organization that operates to make a profit."
+  }
+  ```
 
-## 🚀 Local Setup
+### `POST /api/judge`
+- **Input Payload**: Evaluates proposed guesses.
+  ```json
+  {
+    "guess": "exchange",
+    "current_word": "switch",
+    "current_def": "to change or exchange something for something else",
+    "target_word": "mine",
+    "target_def": "something that belongs to or is possessed by someone",
+    "chain": ["switch"]
+  }
+  ```
+- **Output Response (Continue/Win/Fail)**:
+  ```json
+  {
+    "status": "continue",
+    "message": "The guess 'exchange' is a synonym of 'switch'...",
+    "new_anchor": "exchange",
+    "new_anchor_def": "to give something and receive something else in return",
+    "creativity_score": 2
+  }
+  ```
 
-1. **Install Dependencies**:
+---
+
+## 🚀 Setup & Execution
+
+1. **Configure Environment Variables**:
+   Add your Groq API Key to `backend/.env`:
+   ```bash
+   GROQ_API_KEY=gsk_your_api_key_here
+   ```
+
+2. **Install Dependencies**:
    ```bash
    pip install -r requirements.txt
+   ```
+
+3. **Run the Server**:
+   ```bash
+   python main.py
+   ```
+   The FastAPI server will boot, automatically download necessary NLTK datasets (Brown corpus, WordNet), initialize the word pool, and serve the API on `http://localhost:8000/`.

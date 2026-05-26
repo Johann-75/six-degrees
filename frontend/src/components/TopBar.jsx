@@ -1,153 +1,67 @@
-import React, { useState } from 'react';
-import { BookOpen, HelpCircle, RefreshCw, Trophy } from 'lucide-react';
-// eslint-disable-next-line no-unused-vars
-import { motion, AnimatePresence } from 'framer-motion';
+import React from 'react';
+import { motion } from 'framer-motion';
+import { BookOpen, RefreshCw, HelpCircle } from 'lucide-react';
 
-const TopBar = ({ wordA, wordADef, wordB, wordBDef, onRestart, gameWon, showWinModal, setShowWinModal, lastGuessSuccess, hasError }) => {
-  const [showDefs, setShowDefs] = useState(true);
-
+const TopBar = ({ onRestart, showDefs, setShowDefs, stamina, isInitialized, isRestarting }) => {
   return (
-    <div className="pt-6 px-4 md:px-8 z-10 w-full flex-shrink-0">
-      <div className="max-w-7xl mx-auto flex flex-col gap-6 lg:gap-12">
-        
-        {/* Header Controls */}
-        <div className="flex justify-between items-center relative">
-          <h1 className="text-lg uppercase tracking-widest font-bold opacity-50 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
-            Six Degrees
-          </h1>
-
-          <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
-            <button 
-              onClick={onRestart}
-              className="flex items-center gap-2 text-xs font-bold transition-all px-4 py-2 rounded-xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-lg active:scale-95 text-white"
-            >
-              <RefreshCw size={14} />
-              <span>Restart</span>
-            </button>
-
-            <AnimatePresence>
-              {gameWon && !showWinModal && (
-                <motion.button 
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  onClick={() => setShowWinModal(true)}
-                  className="p-2 bg-emerald-500/20 text-emerald-500 rounded-xl border border-emerald-500/30 hover:bg-emerald-500/30 transition-all animate-bounce"
-                  title="View Result"
-                >
-                  <Trophy size={16} />
-                </motion.button>
-              )}
-            </AnimatePresence>
-          </div>
-
-          <button 
-            onClick={() => setShowDefs(!showDefs)}
-            className="flex items-center gap-2 text-xs transition-colors px-4 py-2 rounded-xl border border-white/10 bg-white/5 backdrop-blur-xl text-white hover:bg-white/10"
-          >
-            {showDefs ? <BookOpen size={14} /> : <HelpCircle size={14} />}
-            <span className="hidden sm:inline tracking-wider uppercase font-bold">{showDefs ? 'Hide' : 'Info'}</span>
-          </button>
-        </div>
-
-        {/* Word Showcase */}
-        <div className="flex flex-col lg:flex-row items-center justify-center gap-2 lg:gap-6 w-full pb-4">
-          
-          {/* Current Focus */}
-          <div className="flex-1 flex flex-col items-center lg:items-end w-full">
-            <p className="text-[0.6rem] text-white/30 mb-2 uppercase tracking-[0.2em] font-semibold">From</p>
-            <div className="relative w-full">
-              {/* Animated Ring on success */}
-              <AnimatePresence>
-                {lastGuessSuccess && (
-                  <motion.div 
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1.1 }}
-                    exit={{ opacity: 0, scale: 1.5 }}
-                    className="absolute inset-0 rounded-3xl border-4 border-indigo-500/30 blur-xl pointer-events-none"
-                  />
-                )}
-              </AnimatePresence>
-
-              <motion.div 
-                layout
-                animate={hasError ? { x: [-4, 4, -4, 4, 0], filter: ['hue-rotate(0deg)', 'hue-rotate(90deg)', 'hue-rotate(0deg)'] } : {}}
-                transition={{ duration: 0.3 }}
-                className={`bg-white/[0.04] border border-white/[0.07] rounded-3xl p-6 lg:p-12 w-full flex flex-col items-center lg:items-end text-center lg:text-right relative overflow-hidden word-card bg-clip-padding ${hasError ? 'ring-1 ring-rose-500/50 glitch-text' : 'shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_20px_40px_-20px_rgba(0,0,0,0.5)]'}`}
-              >
-                <AnimatePresence mode="popLayout">
-                  <motion.p 
-                    key={wordA || 'loading'}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="text-[clamp(3.5rem,7vw,7rem)] font-black capitalize leading-none tracking-tight text-white"
-                  >
-                    {wordA || '...'}
-                  </motion.p>
-                </AnimatePresence>
-                {showDefs && wordADef && (
-                  <motion.p className="text-sm mt-6 italic max-w-sm opacity-60 text-slate-400">"{wordADef}"</motion.p>
-                )}
-              </motion.div>
-            </div>
-          </div>
-          
-          {/* Acid SVG Path */}
-          <div className="flex items-center justify-center py-4 lg:py-0 w-16 lg:w-48 h-24 lg:h-32 flex-shrink-0">
-            <svg width="100%" height="100%" className="overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="acidGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#6366f1" />
-                  <stop offset="50%" stopColor="#14b8a6" />
-                  <stop offset="100%" stopColor="#84cc16" />
-                </linearGradient>
-                <linearGradient id="acidGradVert" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#6366f1" />
-                  <stop offset="50%" stopColor="#14b8a6" />
-                  <stop offset="100%" stopColor="#84cc16" />
-                </linearGradient>
-                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-                  <feMerge>
-                    <feMergeNode in="coloredBlur"/>
-                    <feMergeNode in="SourceGraphic"/>
-                  </feMerge>
-                </filter>
-              </defs>
-              {/* Desktop Path (Horizontal) */}
-              <g className="hidden lg:block">
-                <path d="M0,50 L95,50" stroke="url(#acidGrad)" strokeWidth="6" strokeLinecap="round" fill="none" className="animate-flowing" strokeDasharray="15 20" filter="url(#glow)" />
-                <polygon points="90,40 105,50 90,60" fill="#84cc16" />
-              </g>
-
-              {/* Mobile Path (Vertical) */}
-              <g className="lg:hidden">
-                <path d="M50,0 L50,95" stroke="url(#acidGradVert)" strokeWidth="6" strokeLinecap="round" fill="none" className="animate-flowing" strokeDasharray="15 20" filter="url(#glow)" />
-                <polygon points="40,90 50,105 60,90" fill="#84cc16" />
-              </g>
-            </svg>
-          </div>
-
-          {/* Target */}
-          <div className="flex-1 flex flex-col items-center lg:items-start w-full">
-            <p className="text-[0.6rem] text-white/30 mb-2 uppercase tracking-[0.2em] font-semibold">To</p>
-            <motion.div 
-               layout
-               className="bg-white/[0.04] border border-white/[0.07] rounded-3xl p-6 lg:p-12 w-full flex flex-col items-center lg:items-start text-center lg:text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_20px_40px_-20px_rgba(0,0,0,0.5)] overflow-hidden word-card bg-clip-padding"
-            >
-              <p className="text-[clamp(3.5rem,7vw,7rem)] font-black capitalize leading-none tracking-tight text-white">
-                {wordB || '...'}
-              </p>
-              {showDefs && wordBDef && (
-                <motion.p layout className="text-sm mt-6 italic max-w-sm opacity-60 text-slate-400">"{wordBDef}"</motion.p>
-              )}
-            </motion.div>
-          </div>
-
-        </div>
+    <header className="w-full pt-6 sm:pt-8 px-6 sm:px-12 flex flex-col md:flex-row justify-between items-center gap-4 z-20 flex-shrink-0">
+      
+      {/* Column 1: Logo */}
+      <div className="flex items-center gap-3">
+        <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse shadow-[0_0_10px_rgba(99,102,241,0.5)]" />
+        <h1 className="font-mono text-xs sm:text-sm font-bold tracking-[0.3em] uppercase opacity-50">
+          Six Degrees
+        </h1>
       </div>
-    </div>
+
+      {/* Column 2: Stamina Bar (grows and centers on desktop, stacks below logo on mobile) */}
+      {isInitialized && (
+        <div className="w-full max-w-xs md:max-w-md flex flex-col gap-1.5 px-5 py-3 rounded-2xl bg-white/[0.02] border border-white/5 backdrop-blur-md">
+          <div className="flex justify-between items-center text-[9px] sm:text-[10px] font-mono tracking-widest uppercase text-white/40">
+            <span>Stamina</span>
+            <span className={`${stamina <= 3 ? 'text-rose-400 font-bold animate-pulse' : 'text-indigo-400'}`}>
+              {stamina} / 10 HP
+            </span>
+          </div>
+          <div className="w-full h-1.5 rounded-full bg-white/5 overflow-hidden border border-white/5">
+            <motion.div
+              initial={{ width: '100%' }}
+              animate={{ width: `${(stamina / 10) * 100}%` }}
+              transition={{ type: 'spring', stiffness: 80, damping: 15 }}
+              className={`h-full rounded-full transition-colors duration-500 ${
+                stamina <= 3
+                  ? 'bg-gradient-to-r from-rose-600 to-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.4)]'
+                  : stamina <= 6
+                  ? 'bg-gradient-to-r from-amber-500 to-yellow-400 shadow-[0_0_10px_rgba(245,158,11,0.2)]'
+                  : 'bg-gradient-to-r from-indigo-500 to-cyan-400 shadow-[0_0_10px_rgba(99,102,241,0.2)]'
+              }`}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Column 3: Control Buttons */}
+      <div className="flex items-center gap-3 w-full md:w-auto justify-center">
+        <button
+          onClick={onRestart}
+          disabled={isRestarting}
+          className="flex-1 md:flex-initial flex items-center justify-center gap-2 h-11 px-5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-[10px] font-bold uppercase tracking-widest text-white min-w-[44px] disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <RefreshCw size={14} className={isRestarting ? "animate-spin" : ""} />
+          {isRestarting ? 'Loading...' : 'Restart'}
+        </button>
+
+        <button
+          onClick={() => setShowDefs(!showDefs)}
+          className="flex-1 md:flex-initial flex items-center justify-center gap-2 h-11 px-5 rounded-xl border border-white/10 bg-white/5 text-white hover:bg-white/10 transition-all min-w-[44px]"
+        >
+          {showDefs ? <BookOpen size={16} /> : <HelpCircle size={16} />}
+          <span className="text-[10px] font-bold uppercase tracking-widest">
+            {showDefs ? 'Hide Defs' : 'Show Defs'}
+          </span>
+        </button>
+      </div>
+    </header>
   );
 };
 

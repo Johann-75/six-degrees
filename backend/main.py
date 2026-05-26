@@ -1,123 +1,138 @@
-"""
-FastAPI entrypoint for the Six Degrees Semantic Navigation Engine.
-Handles context-aware game logic and serves the React frontend.
-"""
-
-import os
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+import random
+import uvicorn
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
 
-# Import updated logic from game_logic.py
-from game_logic import setup_nltk, get_random_noun_pair, get_word_definition, check_word_relation
+from game_logic import (
+    setup_nltk,
+    WORDS,
+    get_word_definition,
+    validate_guess,
+    pick_word_pair,
+    get_groq_word_definitions,
+    get_groq_anchor_def_update,
+    evaluate_guess,
+)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Handles startup tasks (NLTK setup)."""
+    print("Initializing NLTK and Word Bank...")
     setup_nltk()
+    print(f"Word bank ready. {len(WORDS)} words loaded.")
     yield
+    print("Shutting down...")
 
-app = FastAPI(
-    title="Six Degrees Backend",
-    description="AI-powered semantic navigation engine.",
-    version="1.1.0",
-    lifespan=lifespan
-)
 
-# --- MIDDLEWARE ---
-# Simplified for Hugging Face (Same-origin in Docker)
+app = FastAPI(lifespan=lifespan)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# --- DATA MODELS ---
-class GuessRequest(BaseModel):
+
+class MoveRequest(BaseModel):
     guess: str
     current_word: str
     target_word: str
-    current_def: str
-    target_def: str
+    current_def: str | None = None
+    target_def: str | None = None
+    chain: list[str] | None = None
 
-# --- API ENDPOINTS ---
 
 @app.get("/api/start")
-async def start_game():
-    """Initializes a new game session with random nouns."""
-    try:
-        word_a, word_b = get_random_noun_pair()
-        # Initial definitions don't have context yet
-        return {
-            "word_a": word_a,
-            "word_a_def": get_word_definition(word_a),
-            "word_b": word_b,
-            "word_b_def": get_word_definition(word_b),
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/judge")
-async def handle_guess(req: GuessRequest):
-    """Evaluates a guess using the 'Librarian' for context-aware definitions."""
-    guess = req.guess.strip().lower()
-    
-    # --- THE LIBRARIAN IN ACTION ---
-    # We pass 'current_word' as context so Gemini picks the right 
-    # meaning for the user's guess based on where they just came from.
-    guess_def = get_word_definition(guess, context_word=req.current_word)
-    
-    # 1. Validate relation to the Current Word (The Jump)
-    is_related_to_current, explanation = check_word_relation(
-        guess, req.current_word, guess_def, req.current_def
-    )
-    
-    if is_related_to_current is None:
-        raise HTTPException(status_code=500, detail=explanation)
-        
-    if not is_related_to_current:
-        return {"status": "fail", "message": explanation}
-        
-    # 2. Check for the Win (Relation to Target)
-    is_related_to_target, target_explanation = check_word_relation(
-        guess, req.target_word, guess_def, req.target_def
-    )
-    
-    if is_related_to_target:
-        return {"status": "win", "message": target_explanation}
-    
-    # 3. Successful Move
+def start_game():
+    if not WORDS:
+        raise HTTPException(status_code=500, detail="Word bank not initialized.")
+    word_a, word_b = pick_word_pair()
+    defs = get_groq_word_definitions(word_a, word_b)
     return {
-        "status": "continue",
-        "message": explanation,
-        "new_anchor": guess,
-        "new_anchor_def": guess_def
+        "word_a": word_a,
+        "word_a_def": defs.get("start_def", "Definition unavailable."),
+        "word_b": word_b,
+        "word_b_def": defs.get("target_def", "Definition unavailable."),
     }
 
-# --- STATIC FILES & ROUTING ---
 
-# Path to the React 'dist' folder (mounted as 'static' in Docker)
-static_path = os.path.join(os.path.dirname(__file__), "static")
+@app.post("/api/judge")
+def handle_guess(req: MoveRequest):
+    guess = req.guess.strip().lower()
 
-@app.exception_handler(404)
-async def not_found_handler(request: Request, exc):
-    """Catch-all to handle React Router and prevent 404s on refresh."""
-    if not request.url.path.startswith("/api"):
-        return FileResponse(os.path.join(static_path, "index.html"))
-    return {"detail": "Not Found"}
+    # Basic input validation — single word, within corpus bounds
+    if not guess.replace('-', '').replace(' ', '').isalpha() or len(guess) > 30:
+        return {"status": "fail", "message": "Keep it to a single real word, bro."}
 
-# Mount the frontend (Must be at the bottom)
-if os.path.exists(static_path):
-    app.mount("/", StaticFiles(directory=static_path, html=True), name="static")
+    if len(guess) < 2:
+        return {"status": "fail", "message": "Too short — use a proper word (2+ letters)."}
 
-# --- EXECUTION ---
+    # WordNet existence gate — reject words the dictionary doesn't know
+    # BEFORE burning an API call on the AI judge
+    if not validate_guess(guess):
+        return {"status": "fail", "message": f'"{guess}" isn\'t in the dictionary. Try a real English noun.'}
+
+    # Use client-supplied UI definitions if available (prevents definition mismatch bugs), otherwise fall back to WordNet
+    anchor_def = req.current_def or get_word_definition(req.current_word)
+    target_def = req.target_def or get_word_definition(req.target_word)
+    chain = req.chain or [req.current_word]
+
+    # Stop the Looping check
+    normalized_guess = guess.strip().lower()
+    normalized_chain = [w.strip().lower() for w in chain]
+    if normalized_guess in normalized_chain:
+        return {"status": "fail", "message": f"You already used '{guess}' in this chain. Move forward!"}
+
+    # Evaluate the guess via Groq Semantic Arena Judge
+    result = evaluate_guess(
+        anchor=req.current_word,
+        anchor_def=anchor_def,
+        target=req.target_word,
+        target_def=target_def,
+        guess=guess,
+        chain=chain,
+    )
+
+    if result is None:
+        return {"status": "fail", "message": "The judge API is currently unavailable. Please verify your GROQ_API_KEY."}
+
+    related = result.get("related_to_anchor", False)
+    win = result.get("connects_to_target", False)
+    anchor_reason = result.get("anchor_reasoning", "")
+    target_reason = result.get("target_reasoning", "")
+    guess_def = result.get("guess_definition", "Definition unavailable.")
+    creativity_score = result.get("creativity_score", 5)
+
+    if not related:
+        return {"status": "fail", "message": anchor_reason}
+
+    if win:
+        return {
+            "status": "win",
+            "message": anchor_reason,
+            "win_reason": target_reason,
+            "creativity_score": creativity_score,
+        }
+
+    # Fetch updated definition of the new anchor word contextually via Groq
+    new_def = get_groq_anchor_def_update(
+        current_word=guess,
+        previous_word=req.current_word,
+        default_def=guess_def
+    )
+    
+    return {
+        "status": "continue",
+        "message": anchor_reason,
+        "new_anchor": guess,
+        "new_anchor_def": new_def,
+        "creativity_score": creativity_score,
+    }
+
+
 if __name__ == "__main__":
-    import uvicorn
-    # Hugging Face Spaces port is 7860
-    port = int(os.environ.get("PORT", 7860))
-    uvicorn.run("main:app", host="0.0.0.0", port=port)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
